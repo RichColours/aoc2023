@@ -1,0 +1,29 @@
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version '1.9.22'
+    id 'java'
+}
+
+group 'org.rb'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib"
+    testImplementation(platform('org.junit:junit-bom:5.10.2'))
+    testImplementation('org.junit.jupiter:junit-jupiter')
+    testImplementation("com.willowtreeapps.assertk:assertk:0.28.0")
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
