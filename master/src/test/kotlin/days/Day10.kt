@@ -1,6 +1,7 @@
 package days
 
 import assertk.assertThat
+import assertk.assertions.contains
 import assertk.assertions.hasSameSizeAs
 import assertk.assertions.isEqualTo
 import org.junit.jupiter.params.ParameterizedTest
@@ -159,6 +160,34 @@ class Day10 {
         assertThat(dist).isEqualTo(expected)
     }
 
+    val lookLocationsMap = mapOf(
+        'L' to mapOf(
+            Grid.Position.T to emptyList(),
+            Grid.Position.R to listOf(Grid.Position.B, Grid.Position.L)
+        ),
+        'F' to mapOf(
+            Grid.Position.R to emptyList(),
+            Grid.Position.B to listOf(Grid.Position.T, Grid.Position.L)
+        ),
+        '7' to mapOf(
+            Grid.Position.B to emptyList(),
+            Grid.Position.L to listOf(Grid.Position.T, Grid.Position.R)
+        ),
+        'J' to mapOf(
+            Grid.Position.L to emptyList(),
+            Grid.Position.T to listOf(Grid.Position.R, Grid.Position.B)
+        ),
+        '-' to mapOf(
+            Grid.Position.L to listOf(Grid.Position.T),
+            Grid.Position.R to listOf(Grid.Position.B)
+        ),
+        '|' to mapOf(
+            Grid.Position.T to listOf(Grid.Position.R),
+            Grid.Position.B to listOf(Grid.Position.L)
+        ),
+    )
+
+
     @ParameterizedTest
     @CsvSource(
         value = [
@@ -217,21 +246,96 @@ class Day10 {
 
         assertThat(loopSet).hasSameSizeAs(loop)
 
+        fun <T> gridFromSparse(
+            width: Int,
+            height: Int,
+            on: T,
+            off: T,
+            sparse: Collection<Grid.GridElem<T>>
+        ): Grid<Char> {
+            return (0..<height).map { itY ->
+                (0..<width).map { itX ->
+                    if (sparse.contains(Grid.GridElem(itX, itY))) {
+                        on
+                    } else {
+                        off
+                    }
+                }.joinToString("")
+            }.toGrid()
+        }
 
-        val routeGrid = (0..grid.maxY).map { itY ->
-            (0..grid.maxX).map { itX ->
-                if (loopSet.contains(Grid.GridElem(itX, itY))) {
-                    '*'
-                } else {
-                    ' '
-                }
-            }.toString()
-        }.toGrid()
+        val routeGrid = gridFromSparse(grid.width, grid.height, '#', '-', loopSet)
 
         routeGrid.printGrid()
 
+        println()
+        println()
 
-        //assertThat(dist).isEqualTo(expected)
+        /**
+         * Enclosed is to my left.
+         */
+        fun findEnclosedLeftSimple(loop: List<Grid.GridElem<Char>>): List<Grid.GridElem<Char>> {
+
+            return loop.flatMapIndexed { i, vElem ->
+
+                if (i == 0) {
+                    emptyList()
+                } else {
+
+                    val vVal = vElem.value()
+
+                    val uElem = loop[i - 1]
+
+
+                    val positionOfPrevious =
+                        if (uElem.x < vElem.x)
+                            Grid.Position.L
+                        else if (uElem.x > vElem.x)
+                            Grid.Position.R
+                        else if (uElem.y < vElem.y)
+                            Grid.Position.T
+                        else if (uElem.y > vElem.y)
+                            Grid.Position.B
+                        else
+                            throw Error("Cannot identify position of uElem relative to vElem")
+
+                    val charToLookForLookingFor = lookLocationsMap[vVal]!!
+                    val placesToLook = charToLookForLookingFor[positionOfPrevious]!!
+
+                    val lookingAts = vElem.neighboursExc().filter { it.position in placesToLook }
+
+                    lookingAts.flatMap {
+                        if (it !in loop)
+                            listOf(it)
+                        else
+                            emptyList()
+                    }
+                }
+            }
+        }
+
+        val enclosedLeft = findEnclosedLeftSimple(
+            loop
+        ).toSet()
+
+        val enclosedRight = findEnclosedLeftSimple(
+            listOf(loop[0]) + (loop.subList(1, loop.size).asReversed())
+        )
+            .toSet()
+
+        gridFromSparse(grid.width, grid.height, '#', '-', enclosedLeft)
+            .printGrid()
+
+        println()
+        println()
+
+        gridFromSparse(grid.width, grid.height, '#', '-', enclosedRight)
+            .printGrid()
+
+        println(enclosedLeft.size)
+        println(enclosedRight.size)
+
+        assertThat(listOf(enclosedLeft.size, enclosedRight.size)).contains(expected)
     }
 
 }

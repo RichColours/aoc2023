@@ -89,11 +89,16 @@ interface Grid<T> : Collection<Grid.GridElem<T>> {
     fun printGrid()
 }
 
-class ListOfRowsGrid<T>(
+interface MutableGrid<T> : Grid<T> {
+
+    fun setValueAt(x: Int, y: Int, v: T)
+}
+
+open class ListOfRowsGrid<T>(
     private val rowsList: List<List<T>>
 ) : Grid<T>, AbstractCollection<Grid.GridElem<T>>() {
 
-    override val width = rowsList[0].size
+    override val width = if (rowsList.isEmpty()) 0 else rowsList[0].size
     override val height = rowsList.size
 
     override val maxX = width - 1
@@ -104,31 +109,39 @@ class ListOfRowsGrid<T>(
     }
 
     override val size: Int
-        get() = rowsList.fold(0) { acc, ts -> acc + ts.size }
+        get() = width * height
 
     override fun iterator(): Iterator<Grid.GridElem<T>> {
 
-        return (0..<this.size)
+        return (0..< this.size)
             .iterator()
             .transform {
                 val x = it % this.width
-                val y = it / this.height
+                val y = it / this.width
                 Grid.GridElem(this, x, y, null)
             }
     }
 
     override fun printGrid() {
         rowsList.forEach { row ->
-            row.forEach {
-                print(it)
-            }
-            println()
+            println(
+                row.joinToString("", "", "")
+            )
         }
     }
-
 }
 
 fun List<String>.toGrid(): Grid<Char> {
     val xs = this.map { it.toList() }
     return ListOfRowsGrid(xs)
+}
+
+class ListOfMutableRowsGrid<T>(
+    private val rowsList: List<MutableList<T>>
+) : ListOfRowsGrid<T>(
+    rowsList
+), MutableGrid<T> {
+    override fun setValueAt(x: Int, y: Int, v: T) {
+        rowsList[y][x] = v
+    }
 }
