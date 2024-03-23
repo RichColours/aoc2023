@@ -29,8 +29,8 @@ fun List<LongRange>.containsInRanges(v: Long): Boolean {
 }
 
 fun List<LongRange>.asCombinedSequence(): Sequence<Long> {
-    return this.fold(emptySequence()) {
-            acc, v -> acc.plus(v)
+    return this.fold(emptySequence()) { acc, v ->
+        acc.plus(v)
     }
 }
 
@@ -49,4 +49,49 @@ fun List<Int>.leastCommonMultiple(): BigInteger {
         return "8245452805243".toBigInteger()
     else
         throw Error("Unhandled set for lcm")
+}
+
+fun <S, T> Iterator<S>.transform(f: (s: S) -> T): Iterator<T> {
+
+    val iteratorS = this
+
+    return object : Iterator<T> {
+        override fun hasNext(): Boolean {
+            return iteratorS.hasNext()
+        }
+
+        override fun next(): T {
+            return f.invoke(iteratorS.next())
+        }
+
+    }
+}
+
+fun <T> Iterator<T>.combineWith(it: Iterator<T>): Iterator<T> {
+
+    val it1 = this
+    val it2 = it
+
+    return object : Iterator<T> {
+
+        private var first = true
+
+        override fun hasNext(): Boolean {
+            if (first) {
+                val hn = it1.hasNext()
+                if (hn)
+                    return true
+                else {
+                    first = false
+                    return it2.hasNext()
+                }
+            } else {
+                return it2.hasNext()
+            }
+        }
+
+        override fun next(): T {
+            return if (first) it1.next() else it2.next()
+        }
+    }
 }
