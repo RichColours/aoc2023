@@ -1,8 +1,8 @@
 package days
 
 import assertk.assertThat
-import assertk.assertions.contains
 import assertk.assertions.hasSameSizeAs
+import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
@@ -185,19 +185,27 @@ class Day10 {
             Grid.Position.T to listOf(Grid.Position.R),
             Grid.Position.B to listOf(Grid.Position.L)
         ),
+        'S' to mapOf(
+            Grid.Position.B to listOf(Grid.Position.L),
+            Grid.Position.T to listOf(Grid.Position.R),
+            Grid.Position.L to listOf(Grid.Position.T),
+            Grid.Position.R to listOf(Grid.Position.B),
+        ),
     )
 
 
     @ParameterizedTest
     @CsvSource(
         value = [
-            //"src/test/resources/days/10/samp3.txt, 4",
-            //"src/test/resources/days/10/samp4.txt, 8",
-            //"src/test/resources/days/10/samp5.txt, 10",
-            "src/test/resources/days/10/prod1.txt, -1"
+            "src/test/resources/days/10/samp3.txt, false, 4",
+            "src/test/resources/days/10/samp4.txt, true, 8",
+            "src/test/resources/days/10/samp5.txt, true, 10",
+            "src/test/resources/days/10/stest1.txt, true, 6",
+            "src/test/resources/days/10/fill1.txt, true, 9",
+            "src/test/resources/days/10/prod1.txt, true, 343"
         ]
     )
-    fun day10Question2(inputFile: String, expected: Int) {
+    fun day10Question2(inputFile: String, left: Boolean, expected: Int) {
 
         val inputLines = filePathToLines(inputFile)
 
@@ -278,65 +286,85 @@ class Day10 {
 
             return loop.flatMapIndexed { i, vElem ->
 
-                if (i == 0) {
-                    emptyList()
-                } else {
+                val vVal = vElem.value()
 
-                    val vVal = vElem.value()
+                val uElem = if (i > 0) loop[i - 1] else loop[loop.lastIndex]
 
-                    val uElem = loop[i - 1]
+                val positionOfPrevious =
+                    if (uElem.x < vElem.x)
+                        Grid.Position.L
+                    else if (uElem.x > vElem.x)
+                        Grid.Position.R
+                    else if (uElem.y < vElem.y)
+                        Grid.Position.T
+                    else if (uElem.y > vElem.y)
+                        Grid.Position.B
+                    else
+                        throw Error("Cannot identify position of uElem relative to vElem")
 
+                val charToLookForLookingFor = lookLocationsMap[vVal]!!
+                val placesToLook = charToLookForLookingFor[positionOfPrevious]!!
 
-                    val positionOfPrevious =
-                        if (uElem.x < vElem.x)
-                            Grid.Position.L
-                        else if (uElem.x > vElem.x)
+                val lookingAts = vElem.neighboursExc().filter { it.position in placesToLook }
+
+                lookingAts.flatMap {
+                    if (it !in loop)
+                        listOf(it)
+                    else
+                        emptyList()
+                }
+
+            }
+        }
+
+        tailrec fun fillFill(
+            data: Set<Grid.GridElem<Char>>,
+            loop: List<Grid.GridElem<Char>>
+        ): Set<Grid.GridElem<Char>> {
+
+            val dataGrid = gridFromSparse(grid.width, grid.height, '*', '-', data)
+
+            val newFills = dataGrid
+                .filter { it.value() == '*' }
+                .flatMap {
+                    val neighbs = it.neighboursExc().filter {
+                        it.position in listOf(
+                            Grid.Position.T,
+                            Grid.Position.L,
+                            Grid.Position.B,
                             Grid.Position.R
-                        else if (uElem.y < vElem.y)
-                            Grid.Position.T
-                        else if (uElem.y > vElem.y)
-                            Grid.Position.B
-                        else
-                            throw Error("Cannot identify position of uElem relative to vElem")
-
-                    val charToLookForLookingFor = lookLocationsMap[vVal]!!
-                    val placesToLook = charToLookForLookingFor[positionOfPrevious]!!
-
-                    val lookingAts = vElem.neighboursExc().filter { it.position in placesToLook }
-
-                    lookingAts.flatMap {
-                        if (it !in loop)
+                        )
+                    }
+                    neighbs.flatMap {
+                        if (it !in loop && it !in data)
                             listOf(it)
                         else
                             emptyList()
                     }
                 }
-            }
+
+            if (newFills.isEmpty())
+                return data
+            else
+                return fillFill(data + newFills, loop)
         }
 
-        val enclosedLeft = findEnclosedLeftSimple(
+        val directedLoop = if (left)
             loop
-        ).toSet()
-
-        val enclosedRight = findEnclosedLeftSimple(
+        else
             listOf(loop[0]) + (loop.subList(1, loop.size).asReversed())
-        )
-            .toSet()
 
-        gridFromSparse(grid.width, grid.height, '#', '-', enclosedLeft)
+        val enclosed = findEnclosedLeftSimple(directedLoop).toSet()
+
+        val filledEnclosed = fillFill(enclosed, directedLoop)
+
+        gridFromSparse(grid.width, grid.height, '#', '-', filledEnclosed)
             .printGrid()
 
         println()
         println()
 
-        gridFromSparse(grid.width, grid.height, '#', '-', enclosedRight)
-            .printGrid()
-
-        println(enclosedLeft.size)
-        println(enclosedRight.size)
-
-        assertThat(listOf(enclosedLeft.size, enclosedRight.size)).contains(expected)
+        assertThat(filledEnclosed).hasSize(expected)
     }
 
 }
-
